@@ -12,8 +12,9 @@
 | 证据门禁 | 固定资料候选必须重新读取当前正文，并校验 SHA-256（文件指纹）与页码/章节，才能绑定回答引用 | `tests/test_evidence_registry.py`、`tests/test_ragflow_workflow_integration.py` | `Hit@5`（前 5 候选命中）不是最终答案语义正确率 |
 | OCR（图片文字识别） | 合成控制面板图片通过 RapidOCR 提取 `E-200`、`E01`、`3.1.4` | `tests/test_ocr_pipeline.py` | 不代表真实企业扫描件或生产 OCR 准确率 |
 | 模拟业务 API | 独立 FastAPI Mock（模拟接口）经过身份校验后才提供设备、故障码和库存上下文 | `tests/test_business_api.py` | 不代表真实企业业务系统已接入 |
-| PostgreSQL（关系数据库） | Alembic（数据库迁移工具）定义 8 张审计相关表；事务、回滚和脱敏由隔离集成测试验证 | `tests/test_database_audit.py` | C6 固定评测不执行数据库持久化，不能报告数据库耗时 |
-| 固定评测 | `C6-v1` 含 20 题；当前资料引用、追问、无证据、OCR、库存和系统状态分层记录；人工语义复核为 20/20 | `data/evaluation/c6_fixed_questions.v1.json` | 本地 `FakeSupportAnswerGenerator`（模拟回答生成器）不是 LLM（大模型） |
+| PostgreSQL（关系数据库） | Alembic（数据库迁移工具）定义 8 张审计相关表；事务、回滚和脱敏由隔离集成测试验证 | `tests/test_database_audit.py` | 固定评测不执行数据库持久化，不能报告数据库耗时 |
+| 固定评测 | 版本化题集含 20 题，覆盖当前资料引用、追问、无证据、OCR、库存和系统状态；自动结果与人工语义复核分开记录 | `data/evaluation/c6_fixed_questions.v1.json`、`scripts/run_c6_evaluation.py` | 默认运行的人工语义复核状态为 `pending_human_review`（等待人工复核）；本地 `FakeSupportAnswerGenerator`（模拟回答生成器）不是 LLM（大模型） |
+| 工作流编排 | 已实现严格状态模型、节点输入输出约束和分支处理，并由 `SupportWorkflowExecutor` 串联执行 | `app/agent/state.py`、`app/agent/nodes.py`、`app/agent/workflow.py` | 当前没有安装或调用 LangGraph 的 `StateGraph`（状态图）等真实图编排 API（接口） |
 | Docker Compose（多容器编排） | 本项目提供 API、模拟业务 API、PostgreSQL、健康检查、迁移和持久化卷的可重复交付配置 | `compose.yaml`、`scripts/verify_docker_demo.py` | Docker 运行验证结果必须以本次实际命令输出为准 |
 
 ## 环境要求
@@ -48,7 +49,7 @@ docker compose --env-file .env.docker ps
 docker compose --env-file .env.docker --profile verify run --rm verifier
 ```
 
-验证容器会检查：主 API 健康状态、模拟业务 API 健康状态和固定设备数据、主 API 返回的带来源引用回答，以及 PostgreSQL 中由迁移创建的审计表。成功输出以 `C7 Docker validation passed` 开头（中文意思：C7 Docker 验证通过）。
+验证容器会检查：主 API 健康状态、模拟业务 API 健康状态和固定设备数据、主 API 返回的带来源引用回答，以及 PostgreSQL 中由迁移创建的审计表。成功输出包含 `Docker validation passed`（中文意思：Docker 验证通过）。
 
 中文大白话：启动命令只说明容器被拉起来；验证命令再确认三个服务真的能互相访问，数据库也确实有迁移后的表。
 
@@ -111,7 +112,7 @@ uv run --locked python scripts/run_c6_evaluation.py --review data/evaluation/res
 | `ESA_BUSINESS_API_BASE_URL` | 模拟业务 API 地址 | `http://business-api:8001` |
 | `ESA_RAGFLOW_ENABLED` | 是否启用真实 RAGFlow（知识库服务） | `false`（关闭） |
 | `ESA_RAGFLOW_BASE_URL` / `ESA_RAGFLOW_API_KEY` / `ESA_RAGFLOW_DATASET_ID` | 真实 RAGFlow 的必填配置 | 不提供；启用时必须由运行环境显式注入 |
-| `ESA_LLM_API_KEY` | 未来真实 LLM 的密钥占位 | 不提供，当前固定评测不调用 LLM |
+| `ESA_LLM_API_KEY` | 未来接入真实 LLM 的配置预留 | 不提供；当前代码路径不调用真实 LLM，固定评测使用模拟回答生成器 |
 
 不要把真实 `.env`、API Key（接口密钥）、客户资料或运行结果提交到版本库。`.dockerignore`（Docker 构建忽略清单）也会阻止它们进入镜像构建上下文。
 
