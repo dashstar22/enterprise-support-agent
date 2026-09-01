@@ -1,0 +1,3 @@
+# Fixed PDF fixtures contain byte-level SHA-256 values and must never undergo newline conversion.
+data/fixtures/*.pdf binary
+data/fixtures/*.png binary

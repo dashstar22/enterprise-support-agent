@@ -1,0 +1,31 @@
+# Local settings and secrets / 本地配置与密钥
+.env
+.env.*
+!.env.docker
+!.env.example
+.secrets/
+secrets/
+*.key
+*.pem
+
+# Developer-only state / 开发机专属状态
+.git/
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.idea/
+.vscode/
+
+# Runtime and generated results / 运行时与生成结果
+data/runtime/
+data/evaluation/results/
+data/postgres/
+logs/
+*.log

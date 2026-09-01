@@ -1,0 +1,47 @@
+{
+  "manifest_version": 1,
+  "purpose": "C3-T01 deterministic public-shareable synthetic retrieval fixtures",
+  "fixtures": [
+    {
+      "id": "e200-synthetic-safety-notice-pdf",
+      "path": "e200-synthetic-safety-notice.pdf",
+      "format": "pdf",
+      "origin": "project-authored synthetic material",
+      "distribution": "public-shareable",
+      "stable_location": "page 1",
+      "parser": "text",
+      "sha256": "b91bb8575cb289d11e8f5806598c513604bbd82173dfb8592ea00eceb2574b2c"
+    },
+    {
+      "id": "e200-synthetic-maintenance-guide-markdown",
+      "path": "e200-synthetic-maintenance-guide.md",
+      "format": "markdown",
+      "origin": "project-authored synthetic material",
+      "distribution": "public-shareable",
+      "stable_location": "Fault code E01",
+      "parser": "text",
+      "sha256": "fd11b362abeca1ceaf96e8622f65111f572b7bd2e06b4d6b93b4507b88a1c346"
+    },
+    {
+      "id": "e200-synthetic-fault-codes-text",
+      "path": "e200-synthetic-fault-codes.txt",
+      "format": "text",
+      "origin": "project-authored synthetic material",
+      "distribution": "public-shareable",
+      "stable_location": "line 5",
+      "parser": "text",
+      "sha256": "18d8be5cc646e9549b2c79db14e1e644788bda9acb361b4e90cd7f44d6f23431"
+    },
+    {
+      "id": "e200-synthetic-control-panel-png",
+      "path": "e200-synthetic-control-panel.png",
+      "format": "png",
+      "origin": "project-authored synthetic material",
+      "distribution": "public-shareable",
+      "stable_location": "single image panel",
+      "parser": "ocr",
+      "ingestible": false,
+      "sha256": "2327d7380d66fdd64daf4694581b7e36024789e3ee34ee14c6ddae4bb8ed3e55"
+    }
+  ]
+}

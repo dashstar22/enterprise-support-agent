@@ -1,0 +1,50 @@
+# Environment files and secrets / 环境文件和密钥
+.env
+.env.*
+!.env.example
+!.env.docker
+.secrets/
+secrets/
+*.key
+*.pem
+
+# Python environments and bytecode / Python 虚拟环境和字节码
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Test, type-check, and lint caches / 测试、类型检查和代码检查缓存
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Build and package outputs / 构建和打包产物
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Local databases, logs, and runtime data / 本地数据库、日志和运行时数据
+*.db
+*.sqlite
+*.sqlite3
+*.log
+logs/
+data/uploads/
+data/runtime/
+data/postgres/
+data/evaluation/results/
+
+# Editor and operating-system files / 编辑器和操作系统文件
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+Desktop.ini

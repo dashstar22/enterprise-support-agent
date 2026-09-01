@@ -1,0 +1,6 @@
+E-200 synthetic fault-code fixture
+
+Fixture status: project-authored synthetic training material. It is safe to share and is not a real equipment manual.
+
+E02 | Cooling check | Stop the device and hand off to technical support.
+E03 | Sensor check | Record the displayed code and hand off to technical support.

@@ -1,0 +1,72 @@
+name: enterprise-support-agent
+
+x-app-environment: &app-environment
+  ESA_ENVIRONMENT: ${ESA_ENVIRONMENT:-development}
+  ESA_LOG_LEVEL: ${ESA_LOG_LEVEL:-INFO}
+  ESA_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-esa}:${POSTGRES_PASSWORD:-esa-local-demo-only}@db:5432/${POSTGRES_DB:-enterprise_support}
+  ESA_BUSINESS_API_BASE_URL: http://business-api:8001
+  ESA_RAGFLOW_ENABLED: ${ESA_RAGFLOW_ENABLED:-false}
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-enterprise_support}
+      POSTGRES_USER: ${POSTGRES_USER:-esa}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-esa-local-demo-only}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+
+  business-api:
+    build:
+      context: .
+    entrypoint: ["uv", "run", "--no-sync", "uvicorn", "app.business.mock_api:app", "--host", "0.0.0.0", "--port", "8001"]
+    environment: *app-environment
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; assert urlopen('http://127.0.0.1:8001/mock/health', timeout=2).status == 200"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+
+  api:
+    build:
+      context: .
+    restart: on-failure:3
+    environment: *app-environment
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      business-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "from urllib.request import urlopen; assert urlopen('http://127.0.0.1:8000/api/v1/health', timeout=2).status == 200"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+
+  verifier:
+    build:
+      context: .
+    entrypoint: ["uv", "run", "--no-sync", "python", "scripts/verify_docker_demo.py"]
+    environment: *app-environment
+    depends_on:
+      db:
+        condition: service_healthy
+      business-api:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    profiles: ["verify"]
+
+volumes:
+  postgres_data:
