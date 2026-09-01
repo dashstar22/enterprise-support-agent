@@ -13,7 +13,7 @@
 | OCR（图片文字识别） | 合成控制面板图片通过 RapidOCR 提取 `E-200`、`E01`、`3.1.4` | `tests/test_ocr_pipeline.py` | 不代表真实企业扫描件或生产 OCR 准确率 |
 | 模拟业务 API | 独立 FastAPI Mock（模拟接口）经过身份校验后才提供设备、故障码和库存上下文 | `tests/test_business_api.py` | 不代表真实企业业务系统已接入 |
 | PostgreSQL（关系数据库） | Alembic（数据库迁移工具）定义 8 张审计相关表；事务、回滚和脱敏由隔离集成测试验证 | `tests/test_database_audit.py` | C6 固定评测不执行数据库持久化，不能报告数据库耗时 |
-| 固定评测 | `C6-v1` 含 20 题；当前资料引用、追问、无证据、OCR、库存和系统状态分层记录；人工语义复核为 20/20 | `data/evaluation/c6_fixed_questions.v1.json`、`C6_LEARNING_CN.md` | 本地 `FakeSupportAnswerGenerator`（模拟回答生成器）不是 LLM（大模型） |
+| 固定评测 | `C6-v1` 含 20 题；当前资料引用、追问、无证据、OCR、库存和系统状态分层记录；人工语义复核为 20/20 | `data/evaluation/c6_fixed_questions.v1.json` | 本地 `FakeSupportAnswerGenerator`（模拟回答生成器）不是 LLM（大模型） |
 | Docker Compose（多容器编排） | 本项目提供 API、模拟业务 API、PostgreSQL、健康检查、迁移和持久化卷的可重复交付配置 | `compose.yaml`、`scripts/verify_docker_demo.py` | Docker 运行验证结果必须以本次实际命令输出为准 |
 
 ## 环境要求
