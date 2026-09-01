@@ -122,7 +122,7 @@ def main() -> None:
 
     run_verification(request_json, query_audit_tables)
     print(
-        "C7 Docker validation passed: API, mock business API, cited fixture workflow, and audit migration."
+        "Docker validation passed: API, mock business API, cited fixture workflow, and audit migration."
     )
 
 
