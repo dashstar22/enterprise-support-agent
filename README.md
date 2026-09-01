@@ -124,4 +124,4 @@ uv run --locked python scripts/run_c6_evaluation.py --review data/evaluation/res
 | PostgreSQL 端口或旧卷冲突 | `docker compose --env-file .env.docker ps` | 停止同名项目；只有确认数据可删除时才运行 `down -v` |
 | 验证器提示缺少审计表 | `docker compose --env-file .env.docker logs api` | 主 API 迁移失败时不会健康；修复迁移后重新 `up --build -d` |
 | 真实 RAGFlow 配置校验失败 | 启动日志会列出缺失的 `ESA_RAGFLOW_*` 名称 | 保持 `ESA_RAGFLOW_ENABLED=false`，或完整、安全地注入三项真实配置 |
-| OCR 运行较慢 | 查看 C6 结果中的 `metrics.latency_ms.ocr` | RapidOCR 是本地真实 OCR；该耗时只代表本机固定合成样本，不是生产性能指标 |
+| OCR 运行较慢 | 查看固定评测结果中的 `metrics.latency_ms.ocr` | RapidOCR 是本地真实 OCR；该耗时只代表本机固定合成样本，不是生产性能指标 |
