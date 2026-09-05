@@ -16,6 +16,8 @@ from app.agent.state import (
     MAX_SYMPTOMS,
     AskClarificationInput,
     AskClarificationOutput,
+    BuildRetrievalQueryInput,
+    BuildRetrievalQueryOutput,
     BusinessContext,
     CheckEvidenceInput,
     CheckEvidenceOutput,
@@ -133,6 +135,18 @@ def ask_clarification(state: SupportState) -> AskClarificationOutput:
     return AskClarificationOutput(
         clarification_question=f"请补充{missing_labels}。",
     )
+
+
+def build_retrieval_query(state: SupportState) -> BuildRetrievalQueryOutput:
+    """Build a stable query from confirmed fields. / 用已确认字段构造稳定检索词。"""
+
+    node_input = BuildRetrievalQueryInput(
+        device_model=state.device_model,
+        fault_code=state.fault_code,
+        symptoms=state.symptoms,
+    )
+    query_parts = [node_input.device_model, node_input.fault_code, *node_input.symptoms]
+    return BuildRetrievalQueryOutput(retrieval_query=" ".join(query_parts))
 
 
 def check_evidence(state: SupportState, gate: EvidenceGate | None = None) -> CheckEvidenceOutput:

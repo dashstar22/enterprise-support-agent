@@ -2,6 +2,7 @@
 
 from fastapi import FastAPI
 
+from app.agent.llm import OpenAICompatibleSupportAnswerGenerator
 from app.agent.workflow import (
     DEFAULT_FIXTURE_MANIFEST,
     FixtureEvidenceRetriever,
@@ -59,11 +60,25 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             create_session_factory(engine), token_pricing=token_pricing
         )
         application.state.audit_repository = audit_repository
+    answer_generator = None
+    if app_settings.llm_enabled:
+        # The validator above guarantees these values when real generation is enabled.
+        assert app_settings.llm_base_url is not None
+        assert app_settings.llm_api_key is not None
+        assert app_settings.llm_model is not None
+        answer_generator = OpenAICompatibleSupportAnswerGenerator(
+            base_url=str(app_settings.llm_base_url),
+            api_key=app_settings.llm_api_key,
+            model=app_settings.llm_model,
+            timeout_seconds=app_settings.llm_timeout_seconds,
+        )
+
     workflow_executor = SupportWorkflowExecutor(
         retriever=retriever,
         business_provider=BusinessApiAdapter(BusinessApiClient.from_settings(app_settings)),
         audit_repository=audit_repository,
         gate=gate,
+        answer_generator=answer_generator,
     )
     application.state.workflow_executor = workflow_executor
     application.include_router(

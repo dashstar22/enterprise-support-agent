@@ -11,7 +11,7 @@ from time import perf_counter
 from typing import Any
 from uuid import NAMESPACE_URL, uuid5
 
-from app.agent.adapters import AdapterError
+from app.agent.adapters import AdapterError, SupportAnswerGenerator
 from app.agent.fake_adapters import (
     FakeBusinessContextProvider,
     FakeEvidenceRetriever,
@@ -78,8 +78,16 @@ def percentile(values: list[float], fraction: float) -> float | None:
 class C6EvaluationRunner:
     """Run fixed questions through real nodes with deterministic local adapters. / 用确定性本地适配器运行真实节点。"""
 
-    def __init__(self, question_set: EvaluationQuestionSet) -> None:
+    def __init__(
+        self,
+        question_set: EvaluationQuestionSet,
+        answer_generator: SupportAnswerGenerator | None = None,
+    ) -> None:
         self._question_set = question_set
+        self._answer_generator = answer_generator
+        self._model_input_tokens = 0
+        self._model_output_tokens = 0
+        self._model_call_count = 0
         self._registry = EvidenceRegistry.from_manifest(DEFAULT_FIXTURE_MANIFEST)
         self._gate = EvidenceGate(self._registry)
         self._binder = CitationBinder(self._gate)
@@ -107,8 +115,16 @@ class C6EvaluationRunner:
             "evaluation_version": self._question_set.version,
             "generated_at": datetime.now(UTC).isoformat(),
             "runtime": {
-                "answer_generator": "FakeSupportAnswerGenerator",
-                "answer_generator_note": "本次只验证固定本地工作流，不代表真实 LLM (大模型) 回答。",
+                "answer_generator": (
+                    self._answer_generator.__class__.__name__
+                    if self._answer_generator is not None
+                    else "FakeSupportAnswerGenerator"
+                ),
+                "answer_generator_note": (
+                    "本次使用真实 OpenAI 兼容模型生成回答，检索仍使用固定本地夹具。"
+                    if self._answer_generator is not None
+                    else "本次只验证固定本地工作流，不代表真实 LLM (大模型) 回答。"
+                ),
                 "retriever": "FixtureEvidenceRegistry",
                 "retriever_note": "候选正文必须匹配当前固定资料、SHA-256 和稳定定位，不代表远程 RAGFlow 线上评测。",
                 "knowledge_base_version": "fixture-manifest-v"
@@ -119,12 +135,24 @@ class C6EvaluationRunner:
                     "ocr_fixture_sha256": _sha256_file(DEFAULT_OCR_FIXTURE),
                 },
                 "model": {
-                    "name": None,
-                    "provider": None,
-                    "mode": "fixed_fake_generator",
-                    "note": "未调用真实 LLM (大模型)，模型耗时仅表示本地结构化回答校验开销。",
+                    "name": getattr(self._answer_generator, "model", None),
+                    "provider": "openai-compatible" if self._answer_generator else None,
+                    "mode": "real_provider" if self._answer_generator else "fixed_fake_generator",
+                    "note": (
+                        "模型耗时包含真实网络请求和本地结构化回答校验。"
+                        if self._answer_generator
+                        else "未调用真实 LLM (大模型)，模型耗时仅表示本地结构化回答校验开销。"
+                    ),
                 },
-                "token_usage": None,
+                "token_usage": (
+                    {
+                        "input_tokens": self._model_input_tokens,
+                        "output_tokens": self._model_output_tokens,
+                        "calls": self._model_call_count,
+                    }
+                    if self._answer_generator
+                    else None
+                ),
                 "estimated_token_cost": None,
             },
             "questions": observations,
@@ -186,12 +214,19 @@ class C6EvaluationRunner:
                             )
 
                     model_started = perf_counter()
-                    generated = generate_support_answer(
-                        state,
-                        FakeSupportAnswerGenerator(
-                            result=_answer_for(state.evidence, state.business_context)
-                        ),
-                        self._binder,
+                    generator = self._answer_generator or FakeSupportAnswerGenerator(
+                        result=_answer_for(state.evidence, state.business_context)
+                    )
+                    calls_before = getattr(generator, "call_count", 0)
+                    input_tokens_before = getattr(generator, "total_input_tokens", 0)
+                    output_tokens_before = getattr(generator, "total_output_tokens", 0)
+                    generated = generate_support_answer(state, generator, self._binder)
+                    self._model_call_count += getattr(generator, "call_count", 0) - calls_before
+                    self._model_input_tokens += (
+                        getattr(generator, "total_input_tokens", 0) - input_tokens_before
+                    )
+                    self._model_output_tokens += (
+                        getattr(generator, "total_output_tokens", 0) - output_tokens_before
                     )
                     component_latencies["model"] = _elapsed_ms(model_started)
                     state = _apply_update(state, generated.model_dump())
@@ -353,10 +388,14 @@ class C6EvaluationRunner:
                 }
             },
             "token_accounting": {
-                "input_tokens": None,
-                "output_tokens": None,
+                "input_tokens": self._model_input_tokens or None,
+                "output_tokens": self._model_output_tokens or None,
                 "estimated_cost": None,
-                "note": "固定本地回答生成器不调用模型，因此不虚构 Token 或成本。",
+                "note": (
+                    "Token(模型计量单位)来自模型服务返回的 usage 字段，未配置价格，因此不估算金额。"
+                    if self._answer_generator
+                    else "固定本地回答生成器不调用模型，因此不虚构 Token 或成本。"
+                ),
             },
         }
 

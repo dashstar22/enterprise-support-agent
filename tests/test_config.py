@@ -54,3 +54,28 @@ def test_database_url_rejects_a_non_postgresql_runtime_backend() -> None:
 
     with pytest.raises(ValidationError, match="postgresql\\+psycopg"):
         Settings(_env_file=None, database_url="sqlite+pysqlite://")
+
+
+def test_enabled_llm_requires_provider_settings() -> None:
+    """Real generation cannot start with partial provider configuration. / 真实生成不能用残缺配置启动。"""
+
+    with pytest.raises(ValidationError, match="ESA_LLM_BASE_URL"):
+        Settings(_env_file=None, llm_enabled=True, llm_api_key="secret")
+
+
+def test_enabled_llm_wires_real_generator() -> None:
+    """Enabling the flag injects the OpenAI-compatible generator. / 打开开关后注入兼容 OpenAI 的生成器。"""
+
+    application = create_app(
+        Settings(
+            _env_file=None,
+            environment="test",
+            llm_enabled=True,
+            llm_base_url="https://example.test/v1",
+            llm_model="demo-model",
+            llm_api_key="secret",
+        )
+    )
+    assert application.state.workflow_executor._answer_generator.__class__.__name__ == (
+        "OpenAICompatibleSupportAnswerGenerator"
+    )

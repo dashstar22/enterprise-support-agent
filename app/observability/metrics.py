@@ -15,7 +15,7 @@ class ObservabilitySchema(BaseModel):
 class ExternalApiCallAudit(ObservabilitySchema):
     """Minimal external-call result without headers or body text. / 不含请求头和正文的最小外部调用结果。"""
 
-    service: Literal["ragflow", "business_api", "ocr"]
+    service: Literal["ragflow", "business_api", "llm", "ocr"]
     status_code: int | None = Field(default=None, ge=100, le=599)
     latency_ms: float = Field(ge=0.0)
     outcome: Literal["success", "failure"]

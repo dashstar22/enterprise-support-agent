@@ -37,6 +37,13 @@ class Settings(BaseSettings):
     ) = None
     ragflow_timeout_seconds: float = Field(default=10.0, gt=0.0, le=60.0)
     ragflow_top_k: int = Field(default=5, ge=1, le=20)
+    llm_enabled: bool = False
+    llm_base_url: AnyHttpUrl | None = None
+    llm_model: (
+        Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=128)]
+        | None
+    ) = None
+    llm_timeout_seconds: float = Field(default=30.0, gt=0.0, le=120.0)
     llm_api_key: SecretStr | None = None
 
     @model_validator(mode="after")
@@ -69,6 +76,24 @@ class Settings(BaseSettings):
             "postgresql+psycopg://"
         ):
             raise ValueError("ESA_DATABASE_URL 必须使用 postgresql+psycopg:// 连接地址")
+        return self
+
+    @model_validator(mode="after")
+    def require_enabled_llm_settings(self) -> Self:
+        """Require complete provider settings only when real generation is enabled. / 仅启用真实生成时要求完整模型配置。"""
+
+        if not self.llm_enabled:
+            return self
+
+        missing: list[str] = []
+        if self.llm_base_url is None:
+            missing.append("ESA_LLM_BASE_URL")
+        if self.llm_model is None:
+            missing.append("ESA_LLM_MODEL")
+        if self.llm_api_key is None or not self.llm_api_key.get_secret_value().strip():
+            missing.append("ESA_LLM_API_KEY")
+        if missing:
+            raise ValueError(f"已启用真实 LLM，但缺少必填环境变量: {', '.join(missing)}")
         return self
 
 

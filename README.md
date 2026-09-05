@@ -3,6 +3,7 @@
 一个面向售后人员的、以证据为门禁的故障排查作品集项目。系统先确认设备型号和故障码，再读取可追溯资料；证据不足时明确转人工，不把猜测写成维修结论。
 
 中文大白话：它不是“问一句就让模型随便答”的聊天 Demo（演示程序），而是把“资料依据、外部业务信息、回答步骤和审计记录”拆开验证的小型企业闭环。
+
 ## 新手快速开始
 
 1. 安装并启动 Docker Desktop。
@@ -16,13 +17,24 @@
 | 能力 | 已验证事实 | 证据 | 不能据此声称什么 |
 | --- | --- | --- | --- |
 | API（应用接口） | FastAPI 公开会话入口会执行追问、夹具检索、证据门禁、模拟业务 API、引用绑定回答和 PostgreSQL 审计 | `tests/test_api_contract.py`、`tests/test_public_workflow.py`、`scripts/verify_docker_demo.py` | 默认 Docker 演示使用公开合成资料夹具，不是本地 RAGFlow 或生产入口 |
+| LangGraph 工作流（状态图编排） | 公开执行器使用真实 `StateGraph` 编译图，按条件边执行解析、追问、检索、证据门禁、业务查询、回答、审计和结束节点 | `app/agent/workflow.py`、`tests/test_langgraph_workflow.py` | LangGraph 只负责流程编排；Docker 默认回答仍由离线固定生成器产生 |
 | 证据门禁 | 固定资料候选必须重新读取当前正文，并校验 SHA-256（文件指纹）与页码/章节，才能绑定回答引用 | `tests/test_evidence_registry.py`、`tests/test_ragflow_workflow_integration.py` | `Hit@5`（前 5 候选命中）不是最终答案语义正确率 |
 | OCR（图片文字识别） | 合成控制面板图片通过 RapidOCR 提取 `E-200`、`E01`、`3.1.4` | `tests/test_ocr_pipeline.py` | 不代表真实企业扫描件或生产 OCR 准确率 |
 | 模拟业务 API | 独立 FastAPI Mock（模拟接口）经过身份校验后才提供设备、故障码和库存上下文 | `tests/test_business_api.py` | 不代表真实企业业务系统已接入 |
-| PostgreSQL（关系数据库） | Alembic（数据库迁移工具）定义 8 张审计相关表；事务、回滚和脱敏由隔离集成测试验证 | `tests/test_database_audit.py` | 固定评测不执行数据库持久化，不能报告数据库耗时 |
-| 固定评测 | 版本化题集含 20 题，覆盖当前资料引用、追问、无证据、OCR、库存和系统状态；自动结果与人工语义复核分开记录 | `data/evaluation/c6_fixed_questions.v1.json`、`scripts/run_c6_evaluation.py` | 默认运行的人工语义复核状态为 `pending_human_review`（等待人工复核）；本地 `FakeSupportAnswerGenerator`（模拟回答生成器）不是 LLM（大模型） |
-| 工作流编排 | 已实现严格状态模型、节点输入输出约束和分支处理，并由 `SupportWorkflowExecutor` 串联执行 | `app/agent/state.py`、`app/agent/nodes.py`、`app/agent/workflow.py` | 当前没有安装或调用 LangGraph 的 `StateGraph`（状态图）等真实图编排 API（接口） |
+| PostgreSQL（关系数据库） | Alembic（数据库迁移工具）定义 8 张审计相关表；事务、回滚和脱敏由隔离集成测试验证 | `tests/test_database_audit.py` | C6 固定评测不执行数据库持久化，不能报告数据库耗时 |
+| 固定评测 | `C6-v1` 含 20 题；离线评测记录当前资料引用、追问、无证据、OCR、库存和系统状态 | `data/evaluation/c6_fixed_questions.v1.json`、`scripts/run_c6_evaluation.py` | 固定合成资料和自动引用通过不等同于真实企业语义准确率 |
 | Docker Compose（多容器编排） | 本项目提供 API、模拟业务 API、PostgreSQL、健康检查、迁移和持久化卷的可重复交付配置 | `compose.yaml`、`scripts/verify_docker_demo.py` | Docker 运行验证结果必须以本次实际命令输出为准 |
+
+## 代码结构
+
+- `app/agent/`：请求解析、状态图编排、证据门禁后的回答生成。
+- `app/rag/`：资料夹具、检索适配器和当前来源校验。
+- `app/ocr/`：图片/PDF 文字识别与字段归一化。
+- `app/business/`：本地模拟业务接口及其响应校验。
+- `app/db/`、`app/observability/`：审计持久化、日志脱敏和指标记录。
+- `tests/`：接口、分支、证据、OCR、业务接口、数据库和工作流测试。
+
+工作流入口是 `SupportWorkflowExecutor.graph`：它返回已编译的 `CompiledStateGraph`（已编译状态图）。图节点内部仍调用经过测试的纯业务节点，因此“流程由 LangGraph 管理”和“回答由哪个模型生成”是两件独立的事。
 
 ## 环境要求
 
@@ -91,7 +103,7 @@ uv run --locked pytest -q
 ```powershell
 uv run --locked ruff format --check app tests scripts
 uv run --locked ruff check app tests scripts
-uv run --locked mypy app tests scripts/run_c6_evaluation.py scripts/verify_docker_demo.py
+uv run --locked mypy app tests scripts/run_c6_evaluation.py scripts/run_real_model_evaluation.py scripts/verify_docker_demo.py
 uv lock --check
 ```
 
@@ -103,13 +115,15 @@ uv run --locked python scripts/run_c6_evaluation.py --output data/evaluation/res
 
 该命令会把 `semantic_answer_review`（最终回答语义复核）标为 `pending_human_review`（等待人工复核），这是正确的：人工复核记录不能由程序伪造，也不应作为干净环境的隐藏输入。
 
-如果你已经准备好独立的人工复核 JSON（结构化文本）记录，才额外运行：
+结果文件位于被 Git 忽略的 `data/evaluation/results/`，因为它含运行时间与本地复核记录；固定题集和夹具清单可以被版本管理。质量指标必须分层阅读：候选覆盖、当前引用校验、人工语义复核不是同一个“准确率”。
+
+使用已配置的真实模型运行同一题集：
 
 ```powershell
-uv run --locked python scripts/run_c6_evaluation.py --review data/evaluation/results/c6_manual_semantic_review.json --output data/evaluation/results/c6_reviewed.json
+uv run --locked python scripts/run_real_model_evaluation.py --output data/evaluation/results/real_model_latest.json
 ```
 
-结果文件位于被 Git 忽略的 `data/evaluation/results/`，因为它含运行时间与复核人本地记录；固定题集、夹具清单和复核模板可以被版本管理。质量指标必须分层阅读：候选覆盖、当前引用校验、人工语义复核不是同一个“准确率”。
+该命令默认仍使用固定本地证据夹具，不代表远程 RAGFlow 线上评测；结果文件只保存在本地忽略目录。
 
 ## 配置
 
@@ -119,9 +133,15 @@ uv run --locked python scripts/run_c6_evaluation.py --review data/evaluation/res
 | `ESA_BUSINESS_API_BASE_URL` | 模拟业务 API 地址 | `http://business-api:8001` |
 | `ESA_RAGFLOW_ENABLED` | 是否启用真实 RAGFlow（知识库服务） | `false`（关闭） |
 | `ESA_RAGFLOW_BASE_URL` / `ESA_RAGFLOW_API_KEY` / `ESA_RAGFLOW_DATASET_ID` | 真实 RAGFlow 的必填配置 | 不提供；启用时必须由运行环境显式注入 |
-| `ESA_LLM_API_KEY` | 未来接入真实 LLM 的配置预留 | 不提供；当前代码路径不调用真实 LLM，固定评测使用模拟回答生成器 |
+| `ESA_LLM_ENABLED` | 是否启用真实 LLM（大模型）回答 | `false` |
+| `ESA_LLM_BASE_URL` / `ESA_LLM_MODEL` / `ESA_LLM_API_KEY` | OpenAI 兼容接口地址、模型名和密钥 | 不提供；启用时三项必须完整 |
+| `ESA_LLM_TIMEOUT_SECONDS` | 单次模型请求超时 | `30` 秒 |
 
 不要把真实 `.env`、API Key（接口密钥）、客户资料或运行结果提交到版本库。`.dockerignore`（Docker 构建忽略清单）也会阻止它们进入镜像构建上下文。
+
+### 启用真实大模型
+
+默认公开 Demo 使用固定回答生成器，保证测试离线且结果可重复。需要真实模型时，在本地 `.env`（不要提交）中设置 `ESA_LLM_ENABLED=true`、`ESA_LLM_BASE_URL`、`ESA_LLM_MODEL` 和 `ESA_LLM_API_KEY` 后重启 API。适配器调用 OpenAI 兼容的 `/chat/completions` 接口，模型输出仍必须通过 `SupportAnswer`（回答结构）和引用门禁校验；超时、鉴权失败、限流或非法 JSON 会转成受控错误，不会把供应商原始内容返回给用户。
 
 ## 故障排查
 
@@ -132,4 +152,4 @@ uv run --locked python scripts/run_c6_evaluation.py --review data/evaluation/res
 | PostgreSQL 端口或旧卷冲突 | `docker compose --env-file .env.docker ps` | 停止同名项目；只有确认数据可删除时才运行 `down -v` |
 | 验证器提示缺少审计表 | `docker compose --env-file .env.docker logs api` | 主 API 迁移失败时不会健康；修复迁移后重新 `up --build -d` |
 | 真实 RAGFlow 配置校验失败 | 启动日志会列出缺失的 `ESA_RAGFLOW_*` 名称 | 保持 `ESA_RAGFLOW_ENABLED=false`，或完整、安全地注入三项真实配置 |
-| OCR 运行较慢 | 查看固定评测结果中的 `metrics.latency_ms.ocr` | RapidOCR 是本地真实 OCR；该耗时只代表本机固定合成样本，不是生产性能指标 |
+| OCR 运行较慢 | 查看 C6 结果中的 `metrics.latency_ms.ocr` | RapidOCR 是本地真实 OCR；该耗时只代表本机固定合成样本，不是生产性能指标 |

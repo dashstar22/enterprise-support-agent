@@ -288,12 +288,19 @@ docker compose --env-file .env.docker logs api
 
 真实 RAGFlow 是可选外部服务，需要服务地址、访问密钥和知识库编号。公开 Demo 默认使用项目自带的固定合成资料，保证新用户不需要先搭建外部知识库。
 
+### 如何切换到真实大模型
+
+真实 LLM（大语言模型）已经接入回答生成这一层，但默认开关仍是关闭的。复制 `.env.example` 到本地 `.env` 后，填写 `ESA_LLM_ENABLED=true`、`ESA_LLM_BASE_URL`、`ESA_LLM_MODEL` 和 `ESA_LLM_API_KEY`，再重启 API。这里的 `BASE_URL` 是兼容 OpenAI 的服务地址，程序会请求它的 `/chat/completions` 接口。
+
+模型返回内容不会直接展示：程序先解析 JSON，再检查 `SupportAnswer`（回答结构）和引用是否来自当前证据。超时、鉴权失败、限流和格式错误都会变成受控错误。自动化测试继续使用 `FakeSupportAnswerGenerator`（固定模拟生成器），因此测试不需要联网或密钥。
+
 ## 当前边界
 
 运行成功后，你看到的是一个可重复的本地后端演示。它当前不代表：
 
+流程编排已经接入真实 LangGraph 图执行；默认回答仍使用固定生成器，真实 LLM 仅在显式配置后启用，当前仓库没有宣称已经完成某个云模型的线上调用评测。
+
 - 已接入真实企业业务系统。
 - 已调用真实大模型。
 - 已默认启动本地 RAGFlow。
-- 已实现真实 LangGraph 图执行。
 - 已完成云端部署或生产性能验证。
