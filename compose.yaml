@@ -6,6 +6,11 @@ x-app-environment: &app-environment
   ESA_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-esa}:${POSTGRES_PASSWORD:-esa-local-demo-only}@db:5432/${POSTGRES_DB:-enterprise_support}
   ESA_BUSINESS_API_BASE_URL: http://business-api:8001
   ESA_RAGFLOW_ENABLED: ${ESA_RAGFLOW_ENABLED:-false}
+  ESA_LLM_ENABLED: ${ESA_LLM_ENABLED:-false}
+  ESA_LLM_BASE_URL: ${ESA_LLM_BASE_URL:-}
+  ESA_LLM_MODEL: ${ESA_LLM_MODEL:-}
+  ESA_LLM_API_KEY: ${ESA_LLM_API_KEY:-}
+  ESA_LLM_TIMEOUT_SECONDS: ${ESA_LLM_TIMEOUT_SECONDS:-30}
 
 services:
   db:
